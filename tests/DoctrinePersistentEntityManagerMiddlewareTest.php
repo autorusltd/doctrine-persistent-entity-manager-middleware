@@ -96,7 +96,7 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
 
         $this->container = $builder->build();
 
-        $this->container->set(EntityManager::class, function (Container $container) : EntityManager {
+        $this->container->set(EntityManager::class, function () : EntityManager {
             $config = DoctrineSetup::createAnnotationMetadataConfiguration([__DIR__], true, null, null, false);
 
             // See the file "phpunit.xml.dist" in the package root
