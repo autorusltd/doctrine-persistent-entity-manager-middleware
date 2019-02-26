@@ -9,6 +9,7 @@ use Arus\Middleware\DoctrinePersistentEntityManagerMiddleware;
 use DI\Container;
 use DI\ContainerBuilder;
 use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Setup as DoctrineSetup;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Server\MiddlewareInterface;
@@ -56,14 +57,14 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
      */
     public function testPreservingEntityManager() : void
     {
-        $expectedEntityManager = $this->container->get(EntityManager::class);
+        $expectedEntityManager = $this->container->get(EntityManagerInterface::class);
 
         (new RequestHandler)
         ->add(new DoctrinePersistentEntityManagerMiddleware($this->container))
         ->handle((new ServerRequestFactory)->createServerRequest('GET', '/', []));
 
         $this->assertTrue($expectedEntityManager->isOpen());
-        $this->assertSame($expectedEntityManager, $this->container->get(EntityManager::class));
+        $this->assertSame($expectedEntityManager, $this->container->get(EntityManagerInterface::class));
     }
 
     /**
@@ -71,14 +72,14 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
      */
     public function testReopeningEntityManager() : void
     {
-        $closedEntityManager = $this->container->get(EntityManager::class);
+        $closedEntityManager = $this->container->get(EntityManagerInterface::class);
         $closedEntityManager->close();
 
         (new RequestHandler)
         ->add(new DoctrinePersistentEntityManagerMiddleware($this->container))
         ->handle((new ServerRequestFactory)->createServerRequest('GET', '/', []));
 
-        $reopenedEntityManager = $this->container->get(EntityManager::class);
+        $reopenedEntityManager = $this->container->get(EntityManagerInterface::class);
 
         $this->assertFalse($closedEntityManager->isOpen());
         $this->assertTrue($reopenedEntityManager->isOpen());
@@ -96,7 +97,7 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
 
         $this->container = $builder->build();
 
-        $this->container->set(EntityManager::class, function () : EntityManager {
+        $this->container->set(EntityManagerInterface::class, function () : EntityManagerInterface {
             $config = DoctrineSetup::createAnnotationMetadataConfiguration([__DIR__], true, null, null, false);
 
             // See the file "phpunit.xml.dist" in the package root
@@ -109,8 +110,8 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
      */
     protected function tearDown()
     {
-        if ($this->container->has(EntityManager::class)) {
-            $entityManager = $this->container->get(EntityManager::class);
+        if ($this->container->has(EntityManagerInterface::class)) {
+            $entityManager = $this->container->get(EntityManagerInterface::class);
             $entityManager->getConnection()->close();
             $entityManager->close();
         }

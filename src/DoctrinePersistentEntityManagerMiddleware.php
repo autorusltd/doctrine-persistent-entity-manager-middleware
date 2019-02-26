@@ -16,6 +16,7 @@ namespace Arus\Middleware;
  */
 use DI\Container;
 use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -46,7 +47,7 @@ class DoctrinePersistentEntityManagerMiddleware implements MiddlewareInterface
     {
         $this->container = $container;
 
-        if (! $this->container->has(EntityManager::class)) {
+        if (! $this->container->has(EntityManagerInterface::class)) {
             throw new RuntimeException('The DI container must contain the EntityManager');
         }
     }
@@ -61,10 +62,10 @@ class DoctrinePersistentEntityManagerMiddleware implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler) : ResponseInterface
     {
-        $entityManager = $this->container->get(EntityManager::class);
+        $entityManager = $this->container->get(EntityManagerInterface::class);
 
         if (! $entityManager->isOpen()) {
-            $this->container->set(EntityManager::class, function () use ($entityManager) {
+            $this->container->set(EntityManagerInterface::class, function () use ($entityManager) {
                 return EntityManager::create(
                     $entityManager->getConnection(),
                     $entityManager->getConfiguration(),
