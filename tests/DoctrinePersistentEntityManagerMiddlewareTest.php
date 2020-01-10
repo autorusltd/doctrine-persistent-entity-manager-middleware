@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Server\MiddlewareInterface;
 use Sunrise\Http\Factory\ServerRequestFactory;
 use Sunrise\Http\Router\RequestHandler;
+use RuntimeException;
 
 /**
  * DoctrinePersistentEntityManagerMiddlewareTest
@@ -23,16 +24,12 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
 {
 
     /**
-     * @var null|Container
-     */
-    private $container;
-
-    /**
      * @return void
      */
     public function testConstructor() : void
     {
-        $middleware = new DoctrinePersistentEntityManagerMiddleware($this->container);
+        $container = $this->createContainer('foo');
+        $middleware = new DoctrinePersistentEntityManagerMiddleware($container, 'foo');
 
         $this->assertInstanceOf(MiddlewareInterface::class, $middleware);
     }
@@ -46,7 +43,7 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
         $builder->useAnnotations(false);
         $builder->useAutowiring(false);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('The DI container must contain the EntityManager');
 
         new DoctrinePersistentEntityManagerMiddleware($builder->build());
@@ -57,14 +54,15 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
      */
     public function testPreservingEntityManager() : void
     {
-        $expectedEntityManager = $this->container->get(EntityManagerInterface::class);
+        $container = $this->createContainer('foo');
+        $expectedEntityManager = $container->get('foo');
 
         (new RequestHandler)
-        ->add(new DoctrinePersistentEntityManagerMiddleware($this->container))
+        ->add(new DoctrinePersistentEntityManagerMiddleware($container, 'foo'))
         ->handle((new ServerRequestFactory)->createServerRequest('GET', '/', []));
 
         $this->assertTrue($expectedEntityManager->isOpen());
-        $this->assertSame($expectedEntityManager, $this->container->get(EntityManagerInterface::class));
+        $this->assertSame($expectedEntityManager, $container->get('foo'));
     }
 
     /**
@@ -72,14 +70,15 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
      */
     public function testReopeningEntityManager() : void
     {
-        $closedEntityManager = $this->container->get(EntityManagerInterface::class);
+        $container = $this->createContainer('foo');
+        $closedEntityManager = $container->get('foo');
         $closedEntityManager->close();
 
         (new RequestHandler)
-        ->add(new DoctrinePersistentEntityManagerMiddleware($this->container))
+        ->add(new DoctrinePersistentEntityManagerMiddleware($container, 'foo'))
         ->handle((new ServerRequestFactory)->createServerRequest('GET', '/', []));
 
-        $reopenedEntityManager = $this->container->get(EntityManagerInterface::class);
+        $reopenedEntityManager = $container->get('foo');
 
         $this->assertFalse($closedEntityManager->isOpen());
         $this->assertTrue($reopenedEntityManager->isOpen());
@@ -87,35 +86,25 @@ class DoctrinePersistentEntityManagerMiddlewareTest extends TestCase
     }
 
     /**
-     * @return void
+     * @param string $entryName
+     *
+     * @return Container
      */
-    protected function setUp()
+    private function createContainer(string $entryName) : Container
     {
         $builder = new ContainerBuilder();
         $builder->useAnnotations(false);
         $builder->useAutowiring(false);
 
-        $this->container = $builder->build();
+        $container = $builder->build();
 
-        $this->container->set(EntityManagerInterface::class, function () : EntityManagerInterface {
+        $container->set($entryName, function () : EntityManagerInterface {
             $config = DoctrineSetup::createAnnotationMetadataConfiguration([__DIR__], true, null, null, false);
 
             // See the file "phpunit.xml.dist" in the package root
             return EntityManager::create(['url' => $_ENV['DATABASE_URL']], $config);
         });
-    }
 
-    /**
-     * @return void
-     */
-    protected function tearDown()
-    {
-        if ($this->container->has(EntityManagerInterface::class)) {
-            $entityManager = $this->container->get(EntityManagerInterface::class);
-            $entityManager->getConnection()->close();
-            $entityManager->close();
-        }
-
-        $this->container = null;
+        return $container;
     }
 }
