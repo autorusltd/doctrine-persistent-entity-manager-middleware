@@ -37,17 +37,26 @@ class DoctrinePersistentEntityManagerMiddleware implements MiddlewareInterface
     private $container;
 
     /**
+     * Entry name for the EntityManager in the DI container
+     *
+     * @var string
+     */
+    private $entryName;
+
+    /**
      * Constructor of the class
      *
      * @param Container $container
+     * @param string $entryName
      *
      * @throws RuntimeException If the given DI container does not contain the EntityManager
      */
-    public function __construct(Container $container)
+    public function __construct(Container $container, string $entryName = EntityManagerInterface::class)
     {
         $this->container = $container;
+        $this->entryName = $entryName;
 
-        if (! $this->container->has(EntityManagerInterface::class)) {
+        if (! $this->container->has($this->entryName)) {
             throw new RuntimeException('The DI container must contain the EntityManager');
         }
     }
@@ -62,10 +71,10 @@ class DoctrinePersistentEntityManagerMiddleware implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler) : ResponseInterface
     {
-        $entityManager = $this->container->get(EntityManagerInterface::class);
+        $entityManager = $this->container->get($this->entryName);
 
         if (! $entityManager->isOpen()) {
-            $this->container->set(EntityManagerInterface::class, function () use ($entityManager) {
+            $this->container->set($this->entryName, function () use ($entityManager) {
                 return EntityManager::create(
                     $entityManager->getConnection(),
                     $entityManager->getConfiguration(),
